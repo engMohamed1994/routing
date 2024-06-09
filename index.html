@@ -90,7 +90,7 @@
             let userLocation;
             let routingControl;
 
-            map.locate({ setView: true, maxZoom: 16 });
+            map.locate({ setView: true, maxZoom: 16, watch: true });
 
             function onLocationFound(e) {
                 userLocation = e.latlng;
@@ -100,6 +100,10 @@
                     .bindPopup("You are within " + radius + " meters from this point").openPopup();
 
                 L.circle(e.latlng, radius).addTo(map);
+
+                if (e.heading !== undefined) {
+                    marker.setRotationAngle(e.heading);
+                }
             }
 
             function onLocationError(e) {
@@ -113,6 +117,29 @@
                 if (routingControl) {
                     map.removeControl(routingControl);
                 }
+            }
+
+            function calculateRoute(destLatLng) {
+                clearExistingRoutes();
+
+                routingControl = L.Routing.control({
+                    waypoints: [
+                        userLocation,
+                        destLatLng
+                    ],
+                    routeWhileDragging: true,
+                    showAlternatives: true,
+                    altLineOptions: {
+                        styles: [
+                            { color: 'black', opacity: 0.15, weight: 9 },
+                            { color: 'white', opacity: 0.8, weight: 6 },
+                            { color: 'blue', opacity: 0.5, weight: 2 }
+                        ]
+                    },
+                    createMarker: function(i, waypoint, n) {
+                        return L.marker(waypoint.latLng).bindPopup(`Stop ${i + 1}`);
+                    }
+                }).addTo(map);
             }
 
             document.getElementById('routeButton').addEventListener('click', () => {
@@ -132,28 +159,7 @@
                         }
 
                         const destLatLng = L.latLng(data[0].lat, data[0].lon);
-
-                        clearExistingRoutes();
-
-                        routingControl = L.Routing.control({
-                            waypoints: [
-                                userLocation,
-                                destLatLng
-                            ],
-                            routeWhileDragging: true,
-                            showAlternatives: true,
-                            altLineOptions: {
-                                styles: [
-                                    { color: 'black', opacity: 0.15, weight: 9 },
-                                    { color: 'white', opacity: 0.8, weight: 6 },
-                                    { color: 'blue', opacity: 0.5, weight: 2 }
-                                ]
-                            },
-                            createMarker: function(i, waypoint, n) {
-                                var marker = L.marker(waypoint.latLng).bindPopup(`Stop ${i + 1}`);
-                                return marker;
-                            }
-                        }).addTo(map);
+                        calculateRoute(destLatLng);
                     })
                     .catch(error => {
                         console.error("Error fetching address:", error);
@@ -163,28 +169,7 @@
 
             map.on('click', (e) => {
                 const destLatLng = e.latlng;
-
-                clearExistingRoutes();
-
-                routingControl = L.Routing.control({
-                    waypoints: [
-                        userLocation,
-                        destLatLng
-                    ],
-                    routeWhileDragging: true,
-                    showAlternatives: true,
-                    altLineOptions: {
-                        styles: [
-                            { color: 'black', opacity: 0.15, weight: 9 },
-                            { color: 'white', opacity: 0.8, weight: 6 },
-                            { color: 'blue', opacity: 0.5, weight: 2 }
-                        ]
-                    },
-                    createMarker: function(i, waypoint, n) {
-                        var marker = L.marker(waypoint.latLng).bindPopup(`Stop ${i + 1}`);
-                        return marker;
-                    }
-                }).addTo(map);
+                calculateRoute(destLatLng);
             });
 
             document.getElementById('saveRouteButton').addEventListener('click', () => {
@@ -205,6 +190,11 @@
                 } else {
                     alert("No saved route found.");
                 }
+            });
+
+            const trafficLayer = L.tileLayer('https://traffic.api.hypothetical.com/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                opacity: 0.7
             });
         });
     </script>
