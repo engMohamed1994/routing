@@ -82,13 +82,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const map = L.map('map').fitWorld();
-//https://mt0.google.com/vt/lyrs=y&hl=ar&x={x}&y={y}&z={z}
-//https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-            L.tileLayer('https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', {
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 24,
             }).addTo(map);
 
             let userLocation;
+            let routingControl;
 
             map.locate({ setView: true, maxZoom: 16 });
 
@@ -100,7 +100,7 @@
                     .bindPopup("You are within " + radius + " meters from this point").openPopup();
 
                 L.circle(e.latlng, radius).addTo(map);
-            }   
+            }
 
             function onLocationError(e) {
                 alert(e.message);
@@ -108,6 +108,12 @@
 
             map.on('locationfound', onLocationFound);
             map.on('locationerror', onLocationError);
+
+            function clearExistingRoutes() {
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                }
+            }
 
             document.getElementById('routeButton').addEventListener('click', () => {
                 const destination = document.getElementById('destination').value;
@@ -127,7 +133,9 @@
 
                         const destLatLng = L.latLng(data[0].lat, data[0].lon);
 
-                        L.Routing.control({
+                        clearExistingRoutes();
+
+                        routingControl = L.Routing.control({
                             waypoints: [
                                 userLocation,
                                 destLatLng
@@ -153,6 +161,32 @@
                     });
             });
 
+            map.on('click', (e) => {
+                const destLatLng = e.latlng;
+
+                clearExistingRoutes();
+
+                routingControl = L.Routing.control({
+                    waypoints: [
+                        userLocation,
+                        destLatLng
+                    ],
+                    routeWhileDragging: true,
+                    showAlternatives: true,
+                    altLineOptions: {
+                        styles: [
+                            { color: 'black', opacity: 0.15, weight: 9 },
+                            { color: 'white', opacity: 0.8, weight: 6 },
+                            { color: 'blue', opacity: 0.5, weight: 2 }
+                        ]
+                    },
+                    createMarker: function(i, waypoint, n) {
+                        var marker = L.marker(waypoint.latLng).bindPopup(`Stop ${i + 1}`);
+                        return marker;
+                    }
+                }).addTo(map);
+            });
+
             document.getElementById('saveRouteButton').addEventListener('click', () => {
                 const destination = document.getElementById('destination').value;
                 if (destination) {
@@ -171,11 +205,6 @@
                 } else {
                     alert("No saved route found.");
                 }
-            });
-
-            const trafficLayer = L.tileLayer('https://traffic.api.hypothetical.com/{z}/{x}/{y}.png', {
-                maxZoom: 18,
-                opacity: 0.7
             });
         });
     </script>
